@@ -6,6 +6,8 @@ import { getUserData, markUser } from "./api.js";
 import { getStateArgs } from "./utils.js";
 import { generateTicket } from "./ticket.js";
 
+// make it case insensitive!
+
 init(process.env.TOKEN as string, {
   polling: {
     interval: 2000,
@@ -52,12 +54,12 @@ const getTicket = procedure();
 
 getTicket.make()
   .func(async (state) => {
-    const data = await getUserData(state.lastInput.from?.username ?? "");
-    if(data == null) {
+    const [data, text] = await getUserData(state.lastInput.from?.username ?? "");
+    if(data == null || text == null) {
       await Bot.sendMessage(state.core.chatId, process.env.MSG_GET_ERROR!);
       return;
     }
-    const imgpath = await generateTicket(data);
+    const imgpath = await generateTicket(data, text);
     if(imgpath == null) {
       await Bot.sendMessage(state.core.chatId, process.env.MSG_GET_ERROR!);
       return;

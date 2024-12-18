@@ -138,3 +138,5 @@ plan.txt
 .key.json
 
 tickets/
+
+assets/*

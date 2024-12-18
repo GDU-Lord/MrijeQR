@@ -12,12 +12,14 @@
   "dependencies": {
     "@types/node-telegram-bot-api": "^0.64.7",
     "@types/qrcode": "^1.5.5",
+    "@types/uuid": "^10.0.0",
     "canvas": "^2.11.2",
     "dotenv": "^16.4.7",
     "googleapis": "^144.0.0",
     "node-telegram-bot-api": "^0.63.0",
     "qrcode": "^1.5.4",
-    "tslib": "^2.8.1"
+    "tslib": "^2.8.1",
+    "uuid": "^11.0.3"
   },
   "devDependencies": {
     "@types/node": "^20.17.10",

@@ -2,7 +2,7 @@ console.log("Connecting to the API...");
 
 import { google, sheets_v4 } from "googleapis";
 import "dotenv/config.js";
-import { getIdentifier, getIdentifierFromTable } from "./dataconfig.js";
+import { getIdentifier, getIdentifierFromTable, getTextFromTable } from "./dataconfig.js";
 
 async function getGoogleSheetClient() {
   const auth = new google.auth.GoogleAuth({
@@ -30,7 +30,7 @@ export function mark(data: any, identifier: string, sheets: sheets_v4.Sheets) {
     let found = false;
     data.values!.forEach(async (entry: string[], i: number) => {
       const str = getIdentifier(entry);
-      if(str === identifier) {
+      if(str.toUpperCase() === identifier.toUpperCase()) {
         found = true;
         if(entry[+process.env.MARK_COL_REL_NUM!] !== process.env.MARK_TEXT!) {
           try {
@@ -98,7 +98,7 @@ export async function markUser(identifier: string) {
   return res;
 }
 
-export async function getUserData(username: string) {
+export async function getUserData(username: string): Promise<[string | null, string | null]> {
   const [data] = await readSheet();
-  return getIdentifierFromTable(data.data.values, username);
+  return [getIdentifierFromTable(data.data.values, username), getTextFromTable(data.data.values, username)];
 }
