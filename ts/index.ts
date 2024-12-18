@@ -6,8 +6,6 @@ import { getUserData, markUser } from "./api.js";
 import { getStateArgs } from "./utils.js";
 import { generateTicket } from "./ticket.js";
 
-console.log('test');
-
 init(process.env.TOKEN as string, {
   polling: {
     interval: 2000,
@@ -17,7 +15,7 @@ init(process.env.TOKEN as string, {
   }
 });
 
-console.log("connected");
+console.log("Сonnected!");
 
 type response = "SUCCESS" | "NOT_FOUND" | "ALREADY_MARKED" | "ERROR";
 
