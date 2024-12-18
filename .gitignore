@@ -134,3 +134,7 @@ js/
 # telebotts.code-workspace
 
 plan.txt
+
+.key.json
+
+tickets/

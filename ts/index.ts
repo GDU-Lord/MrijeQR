@@ -1,7 +1,12 @@
 import { CHAIN } from "./core/actions.js";
 import { on, procedure } from "./core/chain.js";
-import { init, Bot, procedureListener } from "./core/index.js";
+import { init, Bot } from "./core/index.js";
 import "dotenv/config.js";
+import { getUserData, markUser } from "./api.js";
+import { getStateArgs } from "./utils.js";
+import { generateTicket } from "./ticket.js";
+
+console.log('test');
 
 init(process.env.TOKEN as string, {
   polling: {
@@ -14,145 +19,78 @@ init(process.env.TOKEN as string, {
 
 console.log("connected");
 
-on("message", inp => inp.text === "roll")
-  .send('Rolling d20...')
-  .send(async state => {
-    const n = Math.floor(Math.random() * 20) + 1;
-    return `Roll result: ${n}`;
-  });
+type response = "SUCCESS" | "NOT_FOUND" | "ALREADY_MARKED" | "ERROR";
 
-interface rollData {
-  d20: number;
-  d2: number;
-  fails: number;
-  killed: number;
-  successes: number;
-}
+const verify = procedure();
 
-const getSurname = procedure();
-
-getSurname.make()
-  .send("Enter your surname:")
-  .input('SURNAME')
-  .send("Thanks, your surname is {core.inputs.SURNAME.text}!")
-  .func(async state => {
-    state.resolveProcedure(getSurname, state.core.inputs.SURNAME!.text);
-  });
-
-on("message", inp => inp.text === "/roll")
-  .send('Rolling dice...')
-  .func<rollData>(async state => {
-    if(typeof state.data !== "object")
-      state.data = {} as rollData;
-    if(state.data.fails == null) state.data.fails = 0;
-    if(state.data.successes == null) state.data.successes = 0;
-    state.data.d20 = Math.floor(Math.random() * 20) + 1;
-    state.data.d2 = Math.floor(Math.random() * 2) + 1;
+verify.make()
+  .func(async (state) => {
+    return state.data?.ADMIN ? CHAIN.NEXT_ACTION : CHAIN.NEXT_LISTENER;
   })
-  .send("d20 = {data.d20}\nd2 = {data.d2}")
-  .check<rollData>(async state => {
-    if(state.data.d20 >= 10) return "win";
-    else return "lose";
+  .send(process.env.MSG_PROCESS!)
+  .check(async (state) => {
+    const args = getStateArgs(state);
+    const id = args[1] ?? "";
+    return await markUser(id);
   })
-    .funcCase<rollData>("win", async state => {
-      state.data.successes ++;
+    .sendCase<any, any, response>("SUCCESS", async (state) => {
+      return process.env.MSG_SUCCESS!;
     })
-    .funcCase<rollData>("lose", async state => {
-      state.data.fails ++;
-      state.data.killed = 0;
+    .sendCase<any, any, response>("ALREADY_MARKED", async (state) => {
+      return process.env.MSG_ALREADY_MARKED!;
     })
-    .checkNest<rollData>("win", async state => {
-      return state.data.d2;
+    .sendCase<any, any, response>("ERROR", async (state) => {
+      return process.env.MSG_ERROR!;
     })
-      .funcCase<rollData>(2, async state => {
-        state.data.killed = state.data.d20;
-      })
-      .funcCase<rollData>(1, async state => {
-        state.data.killed = Math.floor(state.data.d20 / 4);
-      })
-    .endNest
-  .endCase
-  .send<rollData>(async state => {
-    const text = state.data.d20 >= 10 ? 'Success!' : 'Fail!';
-    const killed = state.data.killed > 0 ? 'You just killed {data.killed} more goblins!' : '';
-    return `${text} ${killed}\nFails: {data.fails}\nSuccesses: {data.successes}`;
-  });
-
-
-on("message", inp => inp.text!.includes("quote"))
-  .send('Your message was: {lastInput.text}');
-
-
-on("message", inp => inp.text === "ping")
-  .send('pong {core.chatId}');
-
-
-on("message", inp => inp.text === "array")
-  .func<number[]>(async state => {
-    state.data = [1,2,3];
-  })
-  .send("Numbers: {data.1} {data.2} {data.0}");
-
-
-on("message", inp => inp.text === "userid")
-  .send("Your Telegarm userID is '{core.userId}'");
-
-on("message", inp => inp.text === "name")
-  .send("Enter your name:")
-  .input('NAME')
-  .send("Thanks! Your name is {core.inputs.NAME.text}. How old are you?")
-  .input('AGE')
-  .func<{ surname: string }>(async (state) => {
-    if(typeof state.data !== "object")
-      state.data = {} as { surname: string };
-    state.data.surname = await state.call(getSurname);
-  })
-  .send("Are you really {core.inputs.NAME.text} {data.surname} and {core.inputs.AGE.text} years old?");
-
-on("message", inp => inp.text === "case")
-  .send("Enter 'a' or 'b'")
-  .input('LETTER')
-  .send("Enter a word")
-  .input('WORD')
-  .check(async state => {
-    return state.core.inputs.LETTER!.text;
-  })
-    .sendCase('a', "Your letter is A, enter a new word")
-    .sendCase('b', "Your letter is B, it's over for you")
-    .inputCase('a', 'WORD')
-  .endCase
-  .send('Your word was {core.inputs.WORD.text}')
-
-const forWord = procedure(); // create procedure
-
-forWord.make()
-  .input('WORD')
-  .check(async state => {
-    const word = state.core.inputs.WORD?.text;
-    return word != null && word.length >= 1 && word.length <= 4;
-  })
-    .sendCase(true, async state => {
-      await state.cache(forWord, async cache => {
-        cache.word = state.core.inputs.WORD; // caching
-      });
-      return 'Thank you!';
-    })
-    .sendCase(false, 'The length of the word is incorrect!')
-    .funcCase(false, async state => {
-      await state.cache(forWord, async cache => {
-        if(cache.word == null)
-          cache.word = await state.call(forWord, "push"); // recursion call and caching of the answer
-      });
+    .sendCase<any, any, response>("NOT_FOUND", async (state) => {
+      return process.env.MSG_NOT_FOUND!;
     })
   .endCase
   .func(async state => {
-    await state.cache(forWord, async cache => {
-      state.resolveProcedure(forWord, cache.word); // return
-    });
+    state.resolveProcedure(verify);
   });
 
-on("message", inp => inp.text === "short word") // respond to message
-  .send("Enter a word that's from 1 to 4 letters long")
-  .send(async state => {
-    return "Your word was " + (await state.call(forWord)).text; // injection
+const getTicket = procedure();
+
+getTicket.make()
+  .func(async (state) => {
+    const data = await getUserData(state.lastInput.from?.username ?? "");
+    if(data == null) {
+      await Bot.sendMessage(state.core.chatId, process.env.MSG_GET_ERROR!);
+      return;
+    }
+    const imgpath = await generateTicket(data);
+    if(imgpath == null) {
+      await Bot.sendMessage(state.core.chatId, process.env.MSG_GET_ERROR!);
+      return;
+    }
+    await Bot.sendPhoto(state.core.chatId, imgpath);
+  })
+  .func(async state => {
+    state.resolveProcedure(getTicket);
   });
+
+on("message", inp => inp.text!.startsWith("/start"))
+  .check(async (state) => {
+    const args = getStateArgs(state);
+    const key = args[1] ?? "";
+    if(key === process.env.ADMIN_KEY)
+      return "ADMIN";
+    else if(key.startsWith("__get__"))
+      return "GET";
+    else
+      return "VERIFY";
+  })
+    .funcCase("VERIFY", async (state) => {
+      await state.call(verify);
+    })
+    .sendCase("ADMIN", async (state) => {
+      state.data = {
+        ADMIN: true
+      };
+      return process.env.MSG_ADMIN!;
+    })
+    .funcCase("GET", async (state) => {
+      await state.call(getTicket);
+    })
+  .endCase;
