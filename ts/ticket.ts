@@ -22,7 +22,13 @@ export async function getURL(userData: string) {
 
 export function generateImage(url: string, text: string) {
   return new Promise<string | null>(res => {
-    QRCode.toBuffer(url, { errorCorrectionLevel: "H" }, async (err, buffer) => {
+    QRCode.toBuffer(url, { 
+      errorCorrectionLevel: "H", 
+      color: {
+        dark: process.env.QR_COLOR!,
+        light: "#FFFFFF"
+      } 
+    }, async (err, buffer) => {
       if(err) {
         res(null);
         console.error(err);
@@ -42,7 +48,7 @@ export function generateImage(url: string, text: string) {
         +process.env.QR_SIZE!,
         +process.env.QR_SIZE!,
       );
-      ctx.fillStyle = "black";
+      ctx.fillStyle = process.env.FONT_COLOR!;
       ctx.textAlign = process.env.TEXT_ALIGN! as CanvasTextAlign;
       ctx.font = process.env.FONT!;
       ctx.fillText(text,
